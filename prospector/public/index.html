@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prospector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F6; --panel:#FFFFFF; --ink:#1B2236; --muted:#5B6479; --line:#D9DEE8;
+  --accent:#2F44D4; --accent-ink:#FFFFFF; --ok:#14764C; --warn:#9A5B05; --bad:#B3261E;
+  --chip:#E4E8F2;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12151E; --panel:#1B2030; --ink:#E8ECF6; --muted:#9AA3B8; --line:#2C3348;
+        --accent:#7F8FFF; --accent-ink:#0F1220; --ok:#4CC38A; --warn:#E3A33C; --bad:#FF8A80; --chip:#262D42;}
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hidden{display:none!important}
+
+/* login */
+#login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.login-box{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:28px}
+.login-box h1{margin:0 0 4px;font-size:22px}
+.login-box p{margin:0 0 20px;color:var(--muted)}
+
+/* layout */
+header{display:flex;align-items:center;gap:20px;padding:0 24px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+header strong{font-size:17px;margin-right:8px}
+nav{display:flex;gap:4px;flex:1;overflow-x:auto}
+nav button{background:none;border:0;padding:16px 14px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;font-weight:500;white-space:nowrap}
+nav button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+main{max-width:1060px;margin:0 auto;padding:24px 20px 60px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:20px}
+h2{margin:0 0 14px;font-size:18px}
+label{display:block;font-weight:500;margin:0 0 4px;font-size:14px}
+input,textarea,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:var(--bg)}
+textarea{min-height:130px;resize:vertical}
+.row{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:14px}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:7px;padding:9px 16px;font-weight:600;cursor:pointer}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.danger{background:none;color:var(--bad);padding:4px 8px;font-weight:500}
+.btn:disabled{opacity:.55;cursor:wait}
+.msg{margin-top:12px;padding:10px 12px;border-radius:7px;background:var(--chip)}
+.msg.err{color:var(--bad)}
+.hint{color:var(--muted);font-size:13px;margin-top:6px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.stat{background:var(--chip);border-radius:8px;padding:8px 14px}
+.stat b{display:block;font-size:20px}
+.stat span{color:var(--muted);font-size:13px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500}
+.tag{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;background:var(--chip)}
+.tag.ok{color:var(--ok)} .tag.bad{color:var(--bad)} .tag.warn{color:var(--warn)}
+.camp{border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:12px}
+.camp-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.camp-top h3{margin:0;font-size:16px;flex:1}
+.bar{height:6px;background:var(--chip);border-radius:9px;margin:10px 0 6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.empty{color:var(--muted);padding:18px 0}
+</style>
+</head>
+<body>
+
+<section id="login" class="hidden">
+  <div class="login-box">
+    <h1>Prospector</h1>
+    <p>Entre para gerenciar seus contatos e campanhas.</p>
+    <label for="lu">Usuário</label>
+    <input id="lu" autocomplete="username" style="margin-bottom:12px">
+    <label for="lp">Senha</label>
+    <input id="lp" type="password" autocomplete="current-password" style="margin-bottom:16px">
+    <button class="btn" id="loginBtn" style="width:100%">Entrar</button>
+    <div id="loginMsg" class="msg err hidden"></div>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+  <header>
+    <strong>Prospector</strong>
+    <nav role="tablist">
+      <button role="tab" data-tab="search" aria-selected="true">Buscar empresas</button>
+      <button role="tab" data-tab="leads" aria-selected="false">Contatos</button>
+      <button role="tab" data-tab="camps" aria-selected="false">Campanhas</button>
+    </nav>
+    <button class="btn ghost" id="logoutBtn">Sair</button>
+  </header>
+
+  <main>
+    <!-- BUSCA -->
+    <section data-panel="search">
+      <div class="card">
+        <h2>Buscar empresas no Google Maps</h2>
+        <div class="row">
+          <div><label for="niche">Nicho</label><input id="niche" placeholder="ex: clínica de estética"></div>
+          <div><label for="region">Cidade ou bairro</label><input id="region" placeholder="ex: Florianópolis, SC"></div>
+          <div><label for="max">Quantidade (máx. 60)</label><input id="max" type="number" value="60" min="1" max="60"></div>
+        </div>
+        <button class="btn" id="searchBtn">Buscar empresas</button>
+        <p class="hint">Só entram na lista empresas com celular divulgado. Cada busca retorna até 60 resultados; para listas maiores, repita por bairro.</p>
+        <div id="searchMsg" class="msg hidden"></div>
+      </div>
+      <div class="card">
+        <h2>Verificar WhatsApp</h2>
+        <p class="hint" style="margin-top:0">Consulta a Evolution API e marca quais números realmente têm WhatsApp. Faça isso antes de criar campanhas.</p>
+        <button class="btn" id="verifyBtn">Verificar números pendentes</button>
+        <div id="verifyMsg" class="msg hidden"></div>
+      </div>
+    </section>
+
+    <!-- CONTATOS -->
+    <section data-panel="leads" class="hidden">
+      <div class="card">
+        <h2>Contatos</h2>
+        <div class="stats" id="leadStats"></div>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Empresa</th><th>Telefone</th><th>Nicho / Região</th><th>WhatsApp</th><th></th></tr></thead>
+          <tbody id="leadRows"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- CAMPANHAS -->
+    <section data-panel="camps" class="hidden">
+      <div class="card">
+        <h2>Nova campanha</h2>
+        <div class="row">
+          <div><label for="cname">Nome da campanha</label><input id="cname"></div>
+          <div><label for="cniche">Nicho (opcional)</label><input id="cniche" placeholder="vazio = todos"></div>
+          <div><label for="cregion">Região (opcional)</label><input id="cregion" placeholder="vazio = todas"></div>
+        </div>
+        <label for="cmsg">Mensagem</label>
+        <textarea id="cmsg">{Olá|Oi}, {primeiro_nome}! Tudo bem? Vi a {nome} no Google Maps e queria entender se faz sentido conversarmos sobre ...</textarea>
+        <p class="hint">Use {nome} e {primeiro_nome}. Varie o texto com {Olá|Oi|E aí}. A frase para sair é adicionada automaticamente ao final.</p>
+        <div class="row" style="margin-top:14px">
+          <div><label for="cmin">Intervalo mínimo (s)</label><input id="cmin" type="number" value="45" min="20"></div>
+          <div><label for="cmax">Intervalo máximo (s)</label><input id="cmax" type="number" value="120" min="20"></div>
+          <div><label for="cdaily">Limite por dia</label><input id="cdaily" type="number" value="30" min="1" max="200"></div>
+        </div>
+        <button class="btn" id="campBtn">Criar campanha</button>
+        <div id="campMsg" class="msg hidden"></div>
+      </div>
+      <div class="card">
+        <h2>Campanhas</h2>
+        <div id="campList"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function api(url, method = 'GET', body) {
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && url !== '/api/login') { showLogin(); throw new Error('Sessão expirada.'); }
+  if (!r.ok) throw new Error(j.error || 'Erro inesperado.');
+  return j;
+}
+function say(el, text, err) { el.textContent = text; el.className = 'msg' + (err ? ' err' : ''); }
+async function run(btn, box, fn) {
+  btn.disabled = true; box.classList.add('hidden');
+  try { const t = await fn(); say(box, t); } catch (e) { say(box, e.message, true); }
+  btn.disabled = false;
+}
+
+/* auth */
+function showLogin() { $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); }
+function showApp() { $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); loadLeads(); loadCamps(); }
+$('#loginBtn').onclick = async () => {
+  try { await api('/api/login', 'POST', { user: $('#lu').value, pass: $('#lp').value }); $('#loginMsg').classList.add('hidden'); showApp(); }
+  catch (e) { say($('#loginMsg'), e.message, true); }
+};
+$('#lp').onkeydown = (e) => { if (e.key === 'Enter') $('#loginBtn').click(); };
+$('#logoutBtn').onclick = async () => { await api('/api/logout', 'POST'); showLogin(); };
+
+/* tabs */
+document.querySelectorAll('nav button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach((x) => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== b.dataset.tab));
+  if (b.dataset.tab === 'leads') loadLeads();
+  if (b.dataset.tab === 'camps') loadCamps();
+});
+
+/* busca */
+$('#searchBtn').onclick = () => run($('#searchBtn'), $('#searchMsg'), async () => {
+  const r = await api('/api/leads/search', 'POST', { niche: $('#niche').value, region: $('#region').value, max: $('#max').value });
+  return `${r.found} empresas encontradas: ${r.added} novas, ${r.duplicates} já estavam na lista, ${r.noPhone} sem telefone, ${r.landline} só com fixo.`;
+});
+$('#verifyBtn').onclick = () => run($('#verifyBtn'), $('#verifyMsg'), async () => {
+  const r = await api('/api/leads/verify', 'POST');
+  return `${r.checked} números verificados: ${r.withWhatsapp} com WhatsApp, ${r.without} sem.`;
+});
+
+/* contatos */
+async function loadLeads() {
+  const { rows, stats } = await api('/api/leads');
+  $('#leadStats').innerHTML = [['Total', stats.total || 0], ['Com WhatsApp', stats.wa || 0], ['Não verificados', stats.pending || 0], ['Descadastrados', stats.optout || 0]]
+    .map(([l, n]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+  $('#leadRows').innerHTML = rows.length ? rows.map((l) => `
+    <tr><td>${esc(l.name)}<div class="hint">${esc(l.address)}</div></td>
+    <td>${esc(l.phone)}</td><td>${esc(l.niche)}<div class="hint">${esc(l.region)}</div></td>
+    <td>${l.opted_out ? '<span class="tag bad">Descadastrado</span>' : l.has_whatsapp === 1 ? '<span class="tag ok">Tem</span>' : l.has_whatsapp === 0 ? '<span class="tag bad">Não tem</span>' : '<span class="tag warn">Pendente</span>'}</td>
+    <td>${l.opted_out ? '' : `<button class="btn danger" data-opt="${l.id}">Bloquear</button>`}<button class="btn danger" data-del="${l.id}">Excluir</button></td></tr>`).join('')
+    : '<tr><td colspan="5" class="empty">Nenhum contato ainda. Use "Buscar empresas" para começar.</td></tr>';
+}
+$('#leadRows').onclick = async (e) => {
+  const o = e.target.dataset.opt, d = e.target.dataset.del;
+  if (o) await api(`/api/leads/${o}/optout`, 'POST');
+  if (d) await api(`/api/leads/${d}`, 'DELETE');
+  if (o || d) loadLeads();
+};
+
+/* campanhas */
+$('#campBtn').onclick = () => run($('#campBtn'), $('#campMsg'), async () => {
+  const r = await api('/api/campaigns', 'POST', {
+    name: $('#cname').value, message: $('#cmsg').value, niche: $('#cniche').value, region: $('#cregion').value,
+    min_delay: $('#cmin').value, max_delay: $('#cmax').value, daily_limit: $('#cdaily').value });
+  loadCamps();
+  return `Campanha criada com ${r.recipients} destinatários. Ela começa pausada: clique em Iniciar quando estiver pronto.`;
+});
+const label = { running: ['Enviando', 'ok'], paused: ['Pausada', 'warn'], done: ['Concluída', ''] };
+async function loadCamps() {
+  const list = await api('/api/campaigns');
+  $('#campList').innerHTML = list.length ? list.map((c) => {
+    const s = c.stats, total = Object.values(s).reduce((a, b) => a + b, 0), sent = s.sent || 0;
+    const [txt, cls] = label[c.status] || [c.status, ''];
+    return `<div class="camp"><div class="camp-top"><h3>${esc(c.name)}</h3><span class="tag ${cls}">${txt}</span>
+      ${c.status === 'running' ? `<button class="btn ghost" data-act="pause" data-id="${c.id}">Pausar</button>` : c.status === 'paused' ? `<button class="btn" data-act="start" data-id="${c.id}">Iniciar</button>` : ''}
+      <button class="btn danger" data-act="del" data-id="${c.id}">Excluir</button></div>
+      <div class="bar"><i style="width:${total ? (sent / total) * 100 : 0}%"></i></div>
+      <div class="hint">${sent} enviadas de ${total} · ${s.pending || 0} na fila · ${s.failed || 0} falhas · ${s.skipped || 0} puladas · limite ${c.daily_limit}/dia</div></div>`;
+  }).join('') : '<div class="empty">Nenhuma campanha criada.</div>';
+}
+$('#campList').onclick = async (e) => {
+  const { act, id } = e.target.dataset; if (!act) return;
+  try { act === 'del' ? await api(`/api/campaigns/${id}`, 'DELETE') : await api(`/api/campaigns/${id}/${act}`, 'POST'); }
+  catch (err) { alert(err.message); }
+  loadCamps();
+};
+setInterval(() => { if (!$('#app').classList.contains('hidden') && !document.querySelector('[data-panel=camps]').classList.contains('hidden')) loadCamps(); }, 10000);
+
+api('/api/me').then((r) => (r.auth ? showApp() : showLogin()));
+</script>
+</body>
+</html>
